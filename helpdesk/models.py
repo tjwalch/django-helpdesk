@@ -17,6 +17,7 @@ from django.conf import settings
 from django.utils.translation import ugettext_lazy as _, ugettext
 from django import VERSION
 from django.utils.encoding import python_2_unicode_compatible
+from django.contrib.postgres import fields as postgres_fields
 
 from helpdesk import settings as helpdesk_settings
 
@@ -630,6 +631,13 @@ class FollowUp(models.Model):
         null=True,
         help_text=_('If the status was changed, what was it changed to?'),
         )
+
+    options = postgres_fields.JSONField(
+        _('Optional actions to perform for recipient'),
+        blank=True,
+        null=True,
+        editable=False,
+    )
 
     objects = FollowUpManager()
 
