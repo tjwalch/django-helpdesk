@@ -23,7 +23,7 @@ from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.core import paginator
-from django.db import connection
+from django.db import connection, transaction
 from django.db.models import Q
 from django.http import HttpResponseRedirect, Http404, HttpResponse
 from django.shortcuts import render, get_object_or_404
@@ -165,6 +165,7 @@ def dashboard(request):
 dashboard = staff_member_required(dashboard)
 
 
+@transaction.atomic
 def delete_ticket(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id)
     if not _has_access_to_queue(request.user, ticket.queue):
@@ -180,6 +181,8 @@ def delete_ticket(request, ticket_id):
         return HttpResponseRedirect(reverse('helpdesk_home'))
 delete_ticket = staff_member_required(delete_ticket)
 
+
+@transaction.atomic
 def followup_edit(request, ticket_id, followup_id):
     "Edit followup options with an ability to change the ticket."
     followup = get_object_or_404(FollowUp, id=followup_id)
@@ -229,6 +232,8 @@ def followup_edit(request, ticket_id, followup_id):
         return HttpResponseRedirect(reverse('helpdesk_view', args=[ticket.id]))
 followup_edit = staff_member_required(followup_edit)
 
+
+@transaction.atomic
 def followup_delete(request, ticket_id, followup_id):
     ''' followup delete for superuser'''
 
@@ -242,6 +247,7 @@ def followup_delete(request, ticket_id, followup_id):
 followup_delete = staff_member_required(followup_delete)
 
 
+@transaction.atomic
 def view_ticket(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id)
     if not _has_access_to_queue(request.user, ticket.queue):
@@ -352,6 +358,7 @@ def subscribe_staff_member_to_ticket(ticket, user):
     ticketcc.save()
 
 
+@transaction.atomic
 def update_ticket(request, ticket_id, public=False):
     if not (public or (request.user.is_authenticated() and request.user.is_active and (request.user.is_staff or helpdesk_settings.HELPDESK_ALLOW_NON_STAFF_TICKET_UPDATE))):
         return HttpResponseRedirect('%s?next=%s' % (reverse('login'), request.path))
@@ -617,6 +624,7 @@ def return_to_ticket(user, helpdesk_settings, ticket):
         return HttpResponseRedirect(ticket.ticket_url)
 
 
+@transaction.atomic
 def mass_update(request):
     tickets = request.POST.getlist('ticket_id')
     action = request.POST.get('action', None)
@@ -709,6 +717,7 @@ def mass_update(request):
 
     return HttpResponseRedirect(reverse('helpdesk_list'))
 mass_update = staff_member_required(mass_update)
+
 
 def ticket_list(request):
     context = {}
@@ -910,6 +919,7 @@ def ticket_list(request):
 ticket_list = staff_member_required(ticket_list)
 
 
+@transaction.atomic
 def edit_ticket(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id)
     if not _has_access_to_queue(request.user, ticket.queue):
@@ -929,6 +939,8 @@ def edit_ticket(request, ticket_id):
         })
 edit_ticket = staff_member_required(edit_ticket)
 
+
+@transaction.atomic
 def create_ticket(request):
     if helpdesk_settings.HELPDESK_STAFF_ONLY_TICKET_OWNERS:
         assignable_users = User.objects.filter(is_active=True, is_staff=True).order_by(User.USERNAME_FIELD)
@@ -982,6 +994,7 @@ def raw_details(request, type):
 raw_details = staff_member_required(raw_details)
 
 
+@transaction.atomic
 def hold_ticket(request, ticket_id, unhold=False):
     ticket = get_object_or_404(Ticket, id=ticket_id)
     if not _has_access_to_queue(request.user, ticket.queue):
@@ -1009,6 +1022,7 @@ def hold_ticket(request, ticket_id, unhold=False):
 hold_ticket = staff_member_required(hold_ticket)
 
 
+@transaction.atomic
 def unhold_ticket(request, ticket_id):
     return hold_ticket(request, ticket_id, unhold=True)
 unhold_ticket = staff_member_required(unhold_ticket)
@@ -1210,6 +1224,7 @@ def run_report(request, report):
 run_report = staff_member_required(run_report)
 
 
+@transaction.atomic
 def save_query(request):
     title = request.POST.get('title', None)
     shared = request.POST.get('shared', False)
@@ -1225,6 +1240,7 @@ def save_query(request):
 save_query = staff_member_required(save_query)
 
 
+@transaction.atomic
 def delete_saved_query(request, id):
     query = get_object_or_404(SavedSearch, id=id, user=request.user)
 
@@ -1239,6 +1255,7 @@ def delete_saved_query(request, id):
 delete_saved_query = staff_member_required(delete_saved_query)
 
 
+@transaction.atomic
 def user_settings(request):
     s = request.user.usersettings
     if request.POST:
@@ -1264,6 +1281,7 @@ def email_ignore(request):
 email_ignore = superuser_required(email_ignore)
 
 
+@transaction.atomic
 def email_ignore_add(request):
     if request.method == 'POST':
         form = EmailIgnoreForm(request.POST)
@@ -1280,6 +1298,7 @@ def email_ignore_add(request):
 email_ignore_add = superuser_required(email_ignore_add)
 
 
+@transaction.atomic
 def email_ignore_del(request, id):
     ignore = get_object_or_404(IgnoreEmail, id=id)
     if request.method == 'POST':
@@ -1291,6 +1310,7 @@ def email_ignore_del(request, id):
                 'ignore': ignore,
             })
 email_ignore_del = superuser_required(email_ignore_del)
+
 
 def ticket_cc(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id)
@@ -1305,6 +1325,8 @@ def ticket_cc(request, ticket_id):
         })
 ticket_cc = staff_member_required(ticket_cc)
 
+
+@transaction.atomic
 def ticket_cc_add(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id)
     if not _has_access_to_queue(request.user, ticket.queue):
@@ -1338,6 +1360,8 @@ def ticket_cc_del(request, ticket_id, cc_id):
         })
 ticket_cc_del = staff_member_required(ticket_cc_del)
 
+
+@transaction.atomic
 def ticket_dependency_add(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id)
     if not _has_access_to_queue(request.user, ticket.queue):
@@ -1359,6 +1383,8 @@ def ticket_dependency_add(request, ticket_id):
         })
 ticket_dependency_add = staff_member_required(ticket_dependency_add)
 
+
+@transaction.atomic
 def ticket_dependency_del(request, ticket_id, dependency_id):
     dependency = get_object_or_404(TicketDependency, ticket__id=ticket_id, id=dependency_id)
     if request.method == 'POST':
@@ -1370,6 +1396,8 @@ def ticket_dependency_del(request, ticket_id, dependency_id):
         })
 ticket_dependency_del = staff_member_required(ticket_dependency_del)
 
+
+@transaction.atomic
 def attachment_del(request, ticket_id, attachment_id):
     ticket = get_object_or_404(Ticket, id=ticket_id)
     if not _has_access_to_queue(request.user, ticket.queue):
